@@ -1,10 +1,13 @@
 package com.revsup.reactwheel.objects;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -51,6 +54,12 @@ public class Wheel extends ShapeRenderer {
     private Texture tapToPlay;
     private Texture highScore;
 
+    private GlyphLayout layout;
+
+    private Sound explosionSound;
+    private Sound victorySound;
+    private Music music;
+
 
     public Wheel(SpriteBatch batch) {
 
@@ -64,6 +73,13 @@ public class Wheel extends ShapeRenderer {
 
         tapToPlay = new Texture("tapscreentext.png");
         highScore = new Texture("highscore.png");
+
+        explosionSound = Gdx.audio.newSound(Gdx.files.internal("explode.wav"));
+        victorySound = Gdx.audio.newSound(Gdx.files.internal("victory.mp3"));
+        music = Gdx.audio.newMusic(Gdx.files.internal("music.mp3"));
+        music.setVolume(0.5f);
+        music.play();
+        music.setLooping(true);
 
         isClockwise = false;
         dir = 1f;
@@ -88,6 +104,8 @@ public class Wheel extends ShapeRenderer {
         highScoreFont.getData().setScale(6f);
 
         SavedDataManager.getInstance().load();
+
+        layout = new GlyphLayout(scoreFont, String.valueOf(score));
 
         score = 0;
 
@@ -157,7 +175,7 @@ public class Wheel extends ShapeRenderer {
         //draw sprites
         batch.begin();
 
-        scoreFont.draw(batch, String.valueOf(score), center.x - 20f, center.y + 30f);
+        scoreFont.draw(batch, layout, center.x - layout.width/2, center.y + layout.height/2);
 
         if(!gameRunning)
             batch.draw(tapToPlay, (screenWidth - tapToPlay.getWidth()) / 2, screenHeight / 4);
@@ -194,10 +212,11 @@ public class Wheel extends ShapeRenderer {
                 targetWasInRange = false;
 
                 Random rnd = new Random();
-                float ang = 0.0f + rnd.nextFloat() * (360f - 0f);
+                float ang = 0.0f + rnd.nextFloat() * (360.0f - 0.0f);
 
                 targetHit = true;
                 prevTarget = new Vector2(target.x, target.y);
+                explosionSound.play();
 
                 score++;
 
@@ -239,6 +258,10 @@ public class Wheel extends ShapeRenderer {
     public void stopGame() {
         gameRunning = false;
         angleSpeed = 0.0f;
+
+        if(score > SavedDataManager.getInstance().getHighScore())
+            victorySound.play();
+
         SavedDataManager.getInstance().setHighScore(score);
         SavedDataManager.getInstance().save();
     }
@@ -272,12 +295,19 @@ public class Wheel extends ShapeRenderer {
 
     public void update() {
 
-
         checkInput();
+        layout.setText(scoreFont, String.valueOf(score));
         dir = (isClockwise) ? -1f : 1f;
 
         arm = rotate(arm, angleSpeed);
         hitPoint = rotate(hitPoint, angleSpeed);
 
+    }
+
+    public void dispose() {
+        explosionSound.dispose();
+        victorySound.dispose();
+        music.dispose();
+        this.dispose();
     }
 }
